@@ -2,10 +2,22 @@
 
 # Standard Imports
 # Third Party Imports
+from contextlib import contextmanager
+import time
 import pandas as pd
 import requests
 import bs4
 # Local Imports
+
+@contextmanager
+def timing(msg: str = "Block ran in {:0.2f} sec"):
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        duration = time.perf_counter() - start
+        print(msg.format(duration))
+
 
 def get_category_sublist(ship: bs4.Tag, li: str = 'li', **kwargs) -> bs4.ResultSet[bs4.Tag]:
     results = ship.find(**kwargs)
@@ -49,15 +61,24 @@ def parse_ships(ships_soup: bs4.BeautifulSoup, **kwargs):
             'Affiliations': parse_ship_sublist(ship,class_='rdbox affiliations'),
             }
         ship_specs.update(kwargs)
-        yield (ship.find(class_='head').find('span').text, ship_specs)
+        ship_name = ship.find(class_='head').find('span').text
+        yield (ship_name, ship_specs)
 
 def get_ship_data(ship_urls: list[str]):
     ships_dict = {}
     for page in ship_urls:
         ship_html = requests.get(page, timeout=30)
         ship_soup = bs4.BeautifulSoup(ship_html.content,'html.parser')
-        ships_dict.update(ship for ship in parse_ships(ship_soup,Class=page.rsplit(sep="?",maxsplit=1)[1]))
+        ships_dict.update(ship for ship in parse_ships(ship_soup,Type=page.rsplit(sep="?",maxsplit=1)[1]))
     return ships_dict    
+
+def get_ship_data_list(ship_urls: list[str]):
+    ships_list = []
+    for page in ship_urls:
+        ship_html = requests.get(page, timeout=30)
+        ship_soup = bs4.BeautifulSoup(ship_html.content,'html.parser')
+        ships_list.extend({'Class':n, 'Specs':s} for n,s in parse_ships(ship_soup,Class=page.rsplit(sep="?",maxsplit=1)[1]))
+    return ships_list
 
 def main() -> None:
     ship_pages = ["https://www.swcombine.com/rules/?Capital_Ships",
@@ -70,9 +91,15 @@ def main() -> None:
                   "https://www.swcombine.com/rules/?Fighters"
                   ]
 
-    ship_dict = get_ship_data(ship_pages)
-    ship_df = pd.DataFrame(ship_dict)
-    print(ship_df)
+    # with timing():
+    #     ship_dict = get_ship_data(ship_pages)
+    #     ship_df = pd.DataFrame(ship_dict)
+    #     print(ship_df)
+
+    with timing():
+        ship_list = get_ship_data_list(ship_pages)
+        ship_df2 = pd.json_normalize(ship_list)
+        print(ship_df2)
     pass
 
 
