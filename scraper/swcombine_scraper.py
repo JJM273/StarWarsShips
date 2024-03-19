@@ -7,6 +7,8 @@ import time
 import pandas as pd
 import requests
 import bs4
+import matplotlib
+
 # Local Imports
 
 @contextmanager
@@ -77,7 +79,7 @@ def get_ship_data_list(ship_urls: list[str]):
     for page in ship_urls:
         ship_html = requests.get(page, timeout=30)
         ship_soup = bs4.BeautifulSoup(ship_html.content,'html.parser')
-        ships_list.extend({'Class':n, 'Specs':s} for n,s in parse_ships(ship_soup,Class=page.rsplit(sep="?",maxsplit=1)[1]))
+        ships_list.extend({'Class':n, 'Specs':s} for n,s in parse_ships(ship_soup,Type=page.rsplit(sep="?",maxsplit=1)[1]))
     return ships_list
 
 def main() -> None:
@@ -100,7 +102,7 @@ def main() -> None:
         ship_list = get_ship_data_list(ship_pages)
         ship_df2 = pd.json_normalize(ship_list)
         print(ship_df2)
-    pass
+    ship_df2.to_csv('ship_data.csv')
 
 
 if __name__ == '__main__':
