@@ -1,0 +1,10 @@
+# ENV and locally generated files that need ignored
+.env
+test.py
+
+
+# IDE and environment files
+.vscode/
+*.code-workspace
+__pycache__/
+.pylintrc
