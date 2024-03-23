@@ -108,7 +108,10 @@ class FilterMenu(ctk.CTkOptionMenu):
 
     def reset_selection(self):
         if self._current_value not in set(self._values):
-            self.set(self._values[0])
+            self.clear_selection()
+
+    def clear_selection(self):
+        self.set(self._values[0])
 
 class Filters(ctk.CTkFrame):
     """
@@ -168,7 +171,7 @@ class Filters(ctk.CTkFrame):
         self.set_filter_options(update_list)
         return self.working_data
     
-    def set_filter_options(self, to_set:list[FilterMenu] = None):
+    def set_filter_options(self, to_set:list[FilterMenu] = None, clear:bool = False):
         """sets filter options based on working data"""
         if to_set is None:
             to_set = self.filters
@@ -176,6 +179,11 @@ class Filters(ctk.CTkFrame):
             return
         for filter in to_set:
             filter.set_options(self.working_data[filter.col_name].unique())
+            if clear: filter.clear_selection()
+
+    def clear_filters(self):
+        self.working_data = self._data
+        self.set_filter_options(clear=True)
 
 
 
@@ -204,7 +212,8 @@ class App(ctk.CTk):
         self.optionmenu.configure(values=["option 1", "option 2","option 3"])
         
     def button_callbck(self):
-        self.canvas.get_tk_widget().pack() 
+        self.canvas.get_tk_widget().pack()
+        self.filters.clear_filters() 
         # self.figure.canvas.draw()
         print("button clicked")
 
