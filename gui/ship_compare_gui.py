@@ -52,6 +52,10 @@ def test_data() -> pandas.DataFrame:
     'E': ['E1', 'E1', 'E1', 'E1', 'E1']}
     return pandas.DataFrame(data)
 
+#####################
+# Helper classes
+#####################
+
 class BaseButton(ctk.CTkButton):
     def __init__(self, master,*args,**kwargs):
         super().__init__(master,*args,**kwargs)
@@ -78,7 +82,7 @@ class FilterMenu(ctk.CTkOptionMenu):
         self.col_name = name
         super().__init__(master,*args,**kwargs)
         self.set_options(values)
-        self.grid(row=0,column=col, padx=5)
+        self.grid(row=0,column=col, padx=2)
 
     def filter_action(self,name,value):
         print(f"{name},{value}")
@@ -114,6 +118,12 @@ class FilterMenu(ctk.CTkOptionMenu):
         self.set(self._values[0])
 
 class Filters(ctk.CTkFrame):
+    #########
+    # TO DO
+    # add support for "column orientation"
+    # move grid/pack call from FilterMenu to Filters
+    # 
+    #######
     """
     using Pandas provide UI filter element and filtering functionality
     this will create a set of connected dropdown filters that filter the provided data
@@ -139,9 +149,9 @@ class Filters(ctk.CTkFrame):
         #get individual button size and check they will all fit
         button_width = (width/self._size)-4 if orientation == 'row' else width
         button_height = (height/self._size)-4 if orientation == 'col' else height
-        if button_width < 100 or button_height < 25:
+        if button_width < 80 or button_height < 25:
             raise ValueError(f"""Provided frame size (w/h:{width}/{height}) cannot accomodate {self._size} filters.
-                              This would result in buttons of {button_width}/{button_height}""")
+                              This would result in buttons of {button_width} / {button_height}px""")
 
         #check that filter_list contains valid columns
         if data is not None: #DEV remove when data becomes mandatory param
@@ -150,7 +160,8 @@ class Filters(ctk.CTkFrame):
                 raise ValueError(f"column(s) {diff} not found in data")
 
         #dynamically create filters from the list provided
-        self.filters = [FilterMenu(self,filter,col=i,command=self.update_filters) for i, filter in enumerate(filter_list)]
+        self.filters = [FilterMenu(self,filter,col=i,command=self.update_filters,width=button_width,height=button_height) 
+                        for i, filter in enumerate(filter_list)]
         self.set_filter_options()
         
     def update_filters(self,col_name,value) -> pandas.DataFrame:
@@ -186,11 +197,27 @@ class Filters(ctk.CTkFrame):
         self.set_filter_options(clear=True)
 
 
+        
+#########################
+# Application and States
+#########################
 
-class App(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.geometry("500x500")
+class AppState(ctk.CTkFrame):
+    """base class for building state classes"""
+    def __init__(self,master,*args,**kwargs):
+        super().__init__(master,*args,**kwargs)
+            
+    def initialize_state(self,prior_exit_value: Any):
+        """runs when app moves to this state"""
+        ...
+    
+    def exit_state(self) -> Any:
+        """runs when app exits state"""
+
+class TestState(AppState):
+    def __init__(self,master: ctk.CTk):
+        super().__init__(master)
+        master_width = master._current_width
         self.button = StdBtn(self, text="my button", command=self.button_callbck)
         self.button.pack(padx=20, pady=20)
         # adding matplotlib canvas
@@ -204,7 +231,7 @@ class App(ctk.CTk):
                                          command=self.optionmenu_callback,
                                          variable=optionmenu_var)
         self.optionmenu.pack()
-        self.filters = Filters(self,width=500,height=28,data=self.data,filter_list=["A","C","D"])
+        self.filters = Filters(self,width=master_width,height=28,data=self.data,filter_list=["A","B","C","D","E"])
         self.filters.pack()
 
     def optionmenu_callback(self, choice):
@@ -216,6 +243,51 @@ class App(ctk.CTk):
         self.filters.clear_filters() 
         # self.figure.canvas.draw()
         print("button clicked")
+
+    def exit_state(self) -> Any:
+        return self.filters.working_data
+
+
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.geometry("500x500")
+        self.app_state: AppState = TestState(self)
+        self.header = self._header()
+        self.footer = self._footer()
+        self._configure_layout()
+
+    def _configure_layout(self):
+        self.header.pack()
+        self.app_state.pack()
+        self.footer.pack()
+        ...
+
+    def _header(self) -> ctk.CTkFrame:
+        """header that will be on all pages"""
+        head = ctk.CTkFrame(self,height=28)
+        ...
+        return head
+    
+    def _footer(self) -> ctk.CTkFrame:
+        """footer for all pages"""
+        foot = ctk.CTkFrame(self, height=28)
+        ...
+        return foot
+        
+
+    def nav_toolbar(self) -> ctk.CTkFrame:
+        """navigation menu"""
+        toolbar = ctk.CTkFrame(self)
+        ...
+        return toolbar
+
+    def change_state(self,new_state: AppState):
+        exit_val = self.app_state.exit_state()
+        self.app_state = new_state
+        self.app_state.initialize_state(exit_val)
+
+    
 
 if __name__ == '__main__':
     ctk.set_appearance_mode('dark')
